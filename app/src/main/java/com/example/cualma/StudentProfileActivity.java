@@ -3,11 +3,13 @@ package com.example.cualma;
 import android.app.DatePickerDialog;
 import android.os.Bundle;
 import android.util.Patterns;
+import android.view.MenuItem;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+// Usamos TextInputEditText para mejor compatibilidad con el diseño nuevo
+import com.google.android.material.textfield.TextInputEditText;
 import com.example.cualma.database.DatabaseHelper;
 import com.example.cualma.database.Student;
 import com.example.cualma.utils.SessionManager;
@@ -16,7 +18,8 @@ import java.util.Locale;
 
 public class StudentProfileActivity extends AppCompatActivity {
 
-    private EditText etCarnet, etName, etLastname, etCareer, etBirthDate, etEmail;
+    // Cambiamos a TextInputEditText para que coincida con el XML
+    private TextInputEditText etCarnet, etName, etLastname, etCareer, etBirthDate, etEmail;
     private Button btnSave;
     private DatabaseHelper dbHelper;
     private SessionManager sessionManager;
@@ -27,18 +30,19 @@ public class StudentProfileActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_student_profile);
 
-        // ... Toolbar setup (igual que antes) ...
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setTitle("Perfil");
+        // Habilitar flecha de regreso en toolbar
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setDisplayShowTitleEnabled(true);
+        }
 
         dbHelper = new DatabaseHelper(this);
         sessionManager = new SessionManager(this);
 
         initViews();
 
-        // Si venimos redirigidos del login fallido
         if(getIntent().hasExtra("PREFILLED_CARNET")){
             etCarnet.setText(getIntent().getStringExtra("PREFILLED_CARNET"));
         }
@@ -48,6 +52,7 @@ public class StudentProfileActivity extends AppCompatActivity {
     }
 
     private void initViews() {
+        // Los IDs son los mismos que en el XML
         etCarnet = findViewById(R.id.etCarnet);
         etName = findViewById(R.id.etName);
         etLastname = findViewById(R.id.etLastname);
@@ -58,9 +63,11 @@ public class StudentProfileActivity extends AppCompatActivity {
     }
 
     private void setupClickListeners() {
-        // 1. Calendario para fecha de nacimiento
         etBirthDate.setOnClickListener(v -> showDatePicker());
-        etBirthDate.setFocusable(false); // Evitar escribir manualmente
+        // Importante: asegurar que el click funcione sobre todo el input
+        etBirthDate.setOnFocusChangeListener((v, hasFocus) -> {
+            if(hasFocus) showDatePicker();
+        });
 
         btnSave.setOnClickListener(v -> saveStudentData());
     }
@@ -74,6 +81,9 @@ public class StudentProfileActivity extends AppCompatActivity {
     }
 
     private void saveStudentData() {
+        // Validar nulos para evitar crash
+        if(etCarnet.getText() == null || etName.getText() == null) return;
+
         String carnet = etCarnet.getText().toString().trim().toUpperCase();
         String name = etName.getText().toString().trim();
         String lastname = etLastname.getText().toString().trim();
@@ -83,18 +93,16 @@ public class StudentProfileActivity extends AppCompatActivity {
 
         if (carnet.isEmpty() || name.isEmpty() || lastname.isEmpty() ||
                 career.isEmpty() || birthDate.isEmpty() || email.isEmpty()) {
-            Toast.makeText(this, R.string.fill_all_fields, Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Por favor llena todos los campos", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // 2. Validación formato Carnet (2 letras + 6 números)
         if (!carnet.matches("^[A-Z]{2}\\d{6}$")) {
-            etCarnet.setError("Formato inválido. Ejemplo: AA123456");
+            etCarnet.setError("Formato inválido (Ej: AA123456)");
             etCarnet.requestFocus();
             return;
         }
 
-        // 3. Validación Email
         if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             etEmail.setError("Email inválido");
             etEmail.requestFocus();
@@ -112,21 +120,19 @@ public class StudentProfileActivity extends AppCompatActivity {
 
         if (result > 0 || result != -1) {
             Toast.makeText(this, isEditing ? "Datos actualizados" : "Registro exitoso", Toast.LENGTH_SHORT).show();
-            // Crear sesión automáticamente al guardar/registrar
             sessionManager.createLoginSession(carnet);
             finish();
         } else {
-            Toast.makeText(this, "Error al guardar", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Error al guardar en base de datos", Toast.LENGTH_SHORT).show();
         }
     }
 
     private void loadStudentData() {
-        // Cargar datos solo si hay sesión o si estamos editando
         if (sessionManager.isLoggedIn()) {
-            Student student = dbHelper.getStudent(); // Idealmente buscarías por carnet almacenado
+            Student student = dbHelper.getStudent();
             if (student != null) {
                 etCarnet.setText(student.getCarnet());
-                etCarnet.setEnabled(false); // No editar carnet una vez creado
+                etCarnet.setEnabled(false); // No editar carnet
                 etName.setText(student.getName());
                 etLastname.setText(student.getLastname());
                 etCareer.setText(student.getCareer());
@@ -139,8 +145,12 @@ public class StudentProfileActivity extends AppCompatActivity {
     }
 
     @Override
-    public boolean onSupportNavigateUp() {
-        onBackPressed();
-        return true;
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Manejar flecha atrás del Toolbar
+        if (item.getItemId() == android.R.id.home) {
+            onBackPressed();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 }

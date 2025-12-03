@@ -1,11 +1,17 @@
 package com.example.cualma;
 
+import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Toast;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.SearchView; // Importante para la búsqueda
+import androidx.appcompat.widget.SearchView;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -23,6 +29,10 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
     private DatabaseHelper dbHelper;
     private FloatingActionButton fabAdd;
 
+    // Launcher para guardar archivo
+    private ActivityResultLauncher<Intent> saveFileLauncher;
+    private Bitmap pendingBitmapToSave; // Variable temporal
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -34,11 +44,10 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
         getSupportActionBar().setTitle("Mi Horario");
 
         dbHelper = new DatabaseHelper(this);
-
         initViews();
         setupRecyclerView();
-        loadClasses();
         setupClickListeners();
+        setupFilePicker(); // Configurar el selector de archivos
     }
 
     private void initViews() {
@@ -52,18 +61,52 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
         recyclerView.setAdapter(adapter);
     }
 
+    private void setupClickListeners() {
+        fabAdd.setOnClickListener(v -> {
+            startActivity(new Intent(this, AddEditClassActivity.class));
+        });
+    }
+
+    // Configuración del Selector de Archivos (Nuevo)
+    private void setupFilePicker() {
+        saveFileLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                        Uri uri = result.getData().getData();
+                        if (uri != null && pendingBitmapToSave != null) {
+                            ScheduleExporter.saveBitmapToUri(this, pendingBitmapToSave, uri);
+                        }
+                    } else {
+                        Toast.makeText(this, "Guardado cancelado", Toast.LENGTH_SHORT).show();
+                    }
+                }
+        );
+    }
+
+    private void initiateSaveProcess() {
+        if (adapter.getItemCount() == 0) {
+            Toast.makeText(this, "No hay clases para exportar", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 1. Generar Bitmap
+        pendingBitmapToSave = ScheduleExporter.captureRecyclerView(recyclerView);
+
+        // 2. Abrir selector de archivos (Storage Access Framework)
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("image/png");
+        intent.putExtra(Intent.EXTRA_TITLE, "MiHorario_CualMa.png");
+        saveFileLauncher.launch(intent);
+    }
+
     private void loadClasses() {
         List<ClassSchedule> classes = dbHelper.getAllClasses();
         adapter.setClasses(classes);
     }
 
-    private void setupClickListeners() {
-        fabAdd.setOnClickListener(v -> {
-            Intent intent = new Intent(this, AddEditClassActivity.class);
-            startActivity(intent);
-        });
-    }
-
+    // ... (Mantén onClassClick y onClassDelete iguales)
     @Override
     public void onClassClick(ClassSchedule classSchedule) {
         Intent intent = new Intent(this, AddEditClassActivity.class);
@@ -74,53 +117,37 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
     @Override
     public void onClassDelete(ClassSchedule classSchedule) {
         dbHelper.deleteClass(classSchedule.getId());
-        loadClasses(); // Recargar la lista después de borrar
+        loadClasses();
     }
+    // ...
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_schedule, menu);
 
-        // CONFIGURACIÓN DEL BUSCADOR
         MenuItem searchItem = menu.findItem(R.id.action_search);
         SearchView searchView = (SearchView) searchItem.getActionView();
-
-        // Configurar hint
-        searchView.setQueryHint("Buscar asignatura, aula...");
-
-        // Escuchar cambios en el texto
+        searchView.setQueryHint("Buscar asignatura...");
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
-            public boolean onQueryTextSubmit(String query) {
-                // Filtrar al presionar enter
-                adapter.getFilter().filter(query);
-                return false;
-            }
-
+            public boolean onQueryTextSubmit(String query) { adapter.getFilter().filter(query); return false; }
             @Override
-            public boolean onQueryTextChange(String newText) {
-                // Filtrar mientras se escribe
-                adapter.getFilter().filter(newText);
-                return false;
-            }
+            public boolean onQueryTextChange(String newText) { adapter.getFilter().filter(newText); return false; }
         });
-
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
-
         if (id == R.id.action_calendar) {
-            Intent intent = new Intent(this, ScheduleCalendarActivity.class);
-            startActivity(intent);
+            startActivity(new Intent(this, ScheduleCalendarActivity.class));
             return true;
         } else if (id == R.id.action_download) {
-            ScheduleExporter.exportScheduleAsImage(this, dbHelper.getAllClasses());
+            // Llamar al nuevo proceso de guardado
+            initiateSaveProcess();
             return true;
         }
-
         return super.onOptionsItemSelected(item);
     }
 

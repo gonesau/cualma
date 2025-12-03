@@ -5,100 +5,86 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Typeface;
-import android.os.Environment;
+import android.util.LruCache;
+import android.net.Uri;
+import android.view.View;
 import android.widget.Toast;
-import com.example.cualma.database.ClassSchedule;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
+import androidx.recyclerview.widget.RecyclerView;
+import java.io.OutputStream;
 
 public class ScheduleExporter {
 
-    public static void exportScheduleAsImage(Context context, List<ClassSchedule> classes) {
-        if (classes.isEmpty()) {
-            Toast.makeText(context, "No hay clases para exportar", Toast.LENGTH_SHORT).show();
-            return;
-        }
+    // Método para capturar el RecyclerView completo como Bitmap
+    public static Bitmap captureRecyclerView(RecyclerView view) {
+        RecyclerView.Adapter adapter = view.getAdapter();
+        Bitmap bigBitmap = null;
 
-        int width = 1080;
-        int height = 1920;
+        if (adapter != null) {
+            int size = adapter.getItemCount();
+            int height = 0;
+            Paint paint = new Paint();
 
-        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bitmap);
-        canvas.drawColor(Color.WHITE);
+            // Calculamos el tamaño de la caché (1/8 de la memoria disponible)
+            final int maxMemory = (int) (Runtime.getRuntime().maxMemory() / 1024);
+            final int cacheSize = maxMemory / 8;
 
-        Paint paint = new Paint();
-        paint.setAntiAlias(true);
+            // Instanciamos LruCache correctamente
+            LruCache<String, Bitmap> bitmapCache = new LruCache<>(cacheSize);
 
-        paint.setColor(Color.parseColor("#2196F3"));
-        canvas.drawRect(0, 0, width, 200, paint);
+            for (int i = 0; i < size; i++) {
+                RecyclerView.ViewHolder holder = adapter.createViewHolder(view, adapter.getItemViewType(i));
+                adapter.onBindViewHolder(holder, i);
+                holder.itemView.measure(
+                        View.MeasureSpec.makeMeasureSpec(view.getWidth(), View.MeasureSpec.EXACTLY),
+                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+                holder.itemView.layout(0, 0, holder.itemView.getMeasuredWidth(), holder.itemView.getMeasuredHeight());
+                holder.itemView.setDrawingCacheEnabled(true);
+                holder.itemView.buildDrawingCache();
+                Bitmap drawingCache = holder.itemView.getDrawingCache();
+                if (drawingCache != null) {
+                    // Guardamos una copia del bitmap en la caché
+                    bitmapCache.put(String.valueOf(i), Bitmap.createBitmap(drawingCache));
+                }
+                height += holder.itemView.getMeasuredHeight();
+                holder.itemView.setDrawingCacheEnabled(false); // Limpiamos
+            }
 
-        paint.setColor(Color.WHITE);
-        paint.setTextSize(60);
-        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-        canvas.drawText("Mi Horario", 50, 120, paint);
+            // Creamos el bitmap gigante
+            bigBitmap = Bitmap.createBitmap(view.getMeasuredWidth(), height + 50, Bitmap.Config.ARGB_8888);
+            Canvas bigCanvas = new Canvas(bigBitmap);
+            bigCanvas.drawColor(Color.WHITE); // Fondo blanco
 
-        String[] days = {"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"};
-        int yOffset = 250;
-        int cardHeight = 200;
-        int margin = 20;
+            // Título opcional
+            paint.setColor(Color.BLACK);
+            paint.setTextSize(40);
+            bigCanvas.drawText("Mi Horario - CualMa", 20, 40, paint);
 
-        for (String day : days) {
-            boolean hasClasses = false;
-
-            for (ClassSchedule classSchedule : classes) {
-                if (classSchedule.getDay().equals(day)) {
-                    hasClasses = true;
-
-                    paint.setColor(Color.parseColor("#F5F5F5"));
-                    canvas.drawRoundRect(margin, yOffset, width - margin,
-                            yOffset + cardHeight, 20, 20, paint);
-
-                    paint.setColor(Color.parseColor("#2196F3"));
-                    paint.setTextSize(40);
-                    paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-                    canvas.drawText(classSchedule.getClassName(), margin + 30, yOffset + 50, paint);
-
-                    paint.setColor(Color.parseColor("#757575"));
-                    paint.setTextSize(30);
-                    paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
-                    canvas.drawText(day + " | " + classSchedule.getStartTime() + " - " +
-                            classSchedule.getEndTime(), margin + 30, yOffset + 90, paint);
-
-                    canvas.drawText("Aula: " + classSchedule.getClassroom(),
-                            margin + 30, yOffset + 130, paint);
-                    canvas.drawText("Docente: " + classSchedule.getTeacherName(),
-                            margin + 30, yOffset + 170, paint);
-
-                    yOffset += cardHeight + margin;
+            int currentHeight = 50; // Margen superior para el título
+            for (int i = 0; i < size; i++) {
+                Bitmap bitmap = bitmapCache.get(String.valueOf(i));
+                if (bitmap != null) {
+                    bigCanvas.drawBitmap(bitmap, 0, currentHeight, paint);
+                    currentHeight += bitmap.getHeight();
+                    // No reciclamos aquí inmediatamente si planeamos reusar,
+                    // pero para exportar está bien dejar que el GC lo maneje o limpiar la caché al final.
                 }
             }
         }
+        return bigBitmap;
+    }
 
+    // Método para guardar el Bitmap en la URI seleccionada por el usuario
+    public static void saveBitmapToUri(Context context, Bitmap bitmap, Uri uri) {
         try {
-            File directory = new File(Environment.getExternalStoragePublicDirectory(
-                    Environment.DIRECTORY_PICTURES), "CualMa");
-            if (!directory.exists()) {
-                directory.mkdirs();
+            OutputStream outputStream = context.getContentResolver().openOutputStream(uri);
+            if (outputStream != null) {
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
+                outputStream.close();
+                Toast.makeText(context, "Horario guardado correctamente", Toast.LENGTH_SHORT).show();
             }
-
-            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss",
-                    Locale.getDefault()).format(new Date());
-            File file = new File(directory, "Horario_" + timestamp + ".png");
-
-            FileOutputStream fos = new FileOutputStream(file);
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
-            fos.close();
-
-            Toast.makeText(context, "Horario exportado: " + file.getAbsolutePath(),
-                    Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             e.printStackTrace();
-            Toast.makeText(context, "Error al exportar el horario", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, "Error al guardar: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 }
