@@ -4,6 +4,8 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Filter;
+import android.widget.Filterable;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -13,10 +15,11 @@ import com.example.cualma.database.ClassSchedule;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ClassAdapter extends RecyclerView.Adapter<ClassAdapter.ClassViewHolder> {
+public class ClassAdapter extends RecyclerView.Adapter<ClassAdapter.ClassViewHolder> implements Filterable {
 
     private Context context;
-    private List<ClassSchedule> classList;
+    private List<ClassSchedule> originalList; // Mantiene la lista completa original
+    private List<ClassSchedule> filteredList; // Mantiene la lista que se está mostrando (filtrada)
     private OnClassClickListener listener;
 
     public interface OnClassClickListener {
@@ -26,12 +29,14 @@ public class ClassAdapter extends RecyclerView.Adapter<ClassAdapter.ClassViewHol
 
     public ClassAdapter(Context context, OnClassClickListener listener) {
         this.context = context;
-        this.classList = new ArrayList<>();
+        this.originalList = new ArrayList<>();
+        this.filteredList = new ArrayList<>();
         this.listener = listener;
     }
 
     public void setClasses(List<ClassSchedule> classList) {
-        this.classList = classList;
+        this.originalList = classList;
+        this.filteredList = new ArrayList<>(classList); // Al inicio, la filtrada es igual a la original
         notifyDataSetChanged();
     }
 
@@ -44,7 +49,8 @@ public class ClassAdapter extends RecyclerView.Adapter<ClassAdapter.ClassViewHol
 
     @Override
     public void onBindViewHolder(@NonNull ClassViewHolder holder, int position) {
-        ClassSchedule classSchedule = classList.get(position);
+        // Usamos filteredList en lugar de classList
+        ClassSchedule classSchedule = filteredList.get(position);
 
         holder.tvClassName.setText(classSchedule.getClassName());
         holder.tvClassCode.setText(classSchedule.getClassCode());
@@ -60,7 +66,43 @@ public class ClassAdapter extends RecyclerView.Adapter<ClassAdapter.ClassViewHol
 
     @Override
     public int getItemCount() {
-        return classList.size();
+        return filteredList.size(); // Tamaño de la lista filtrada
+    }
+
+    @Override
+    public Filter getFilter() {
+        return new Filter() {
+            @Override
+            protected FilterResults performFiltering(CharSequence constraint) {
+                String charString = constraint.toString();
+                List<ClassSchedule> filtered;
+
+                if (charString.isEmpty()) {
+                    filtered = originalList;
+                } else {
+                    List<ClassSchedule> tempList = new ArrayList<>();
+                    for (ClassSchedule row : originalList) {
+                        // Lógica de búsqueda: Nombre, Código o Día
+                        if (row.getClassName().toLowerCase().contains(charString.toLowerCase()) ||
+                                row.getClassCode().toLowerCase().contains(charString.toLowerCase()) ||
+                                row.getDay().toLowerCase().contains(charString.toLowerCase())) {
+                            tempList.add(row);
+                        }
+                    }
+                    filtered = tempList;
+                }
+
+                FilterResults filterResults = new FilterResults();
+                filterResults.values = filtered;
+                return filterResults;
+            }
+
+            @Override
+            protected void publishResults(CharSequence constraint, FilterResults results) {
+                filteredList = (List<ClassSchedule>) results.values;
+                notifyDataSetChanged();
+            }
+        };
     }
 
     static class ClassViewHolder extends RecyclerView.ViewHolder {

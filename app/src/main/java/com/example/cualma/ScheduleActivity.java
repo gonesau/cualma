@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SearchView; // Importante para la búsqueda
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -73,12 +74,37 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
     @Override
     public void onClassDelete(ClassSchedule classSchedule) {
         dbHelper.deleteClass(classSchedule.getId());
-        loadClasses();
+        loadClasses(); // Recargar la lista después de borrar
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_schedule, menu);
+
+        // CONFIGURACIÓN DEL BUSCADOR
+        MenuItem searchItem = menu.findItem(R.id.action_search);
+        SearchView searchView = (SearchView) searchItem.getActionView();
+
+        // Configurar hint
+        searchView.setQueryHint("Buscar asignatura, aula...");
+
+        // Escuchar cambios en el texto
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                // Filtrar al presionar enter
+                adapter.getFilter().filter(query);
+                return false;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                // Filtrar mientras se escribe
+                adapter.getFilter().filter(newText);
+                return false;
+            }
+        });
+
         return true;
     }
 

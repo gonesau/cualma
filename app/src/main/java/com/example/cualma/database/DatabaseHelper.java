@@ -151,6 +151,16 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return classList;
     }
 
+    public boolean checkStudentExists(String carnet) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.query(TABLE_STUDENT, new String[]{COL_CARNET},
+                COL_CARNET + "=?", new String[]{carnet}, null, null, null);
+
+        boolean exists = (cursor.getCount() > 0);
+        cursor.close();
+        return exists;
+    }
+
     public ClassSchedule getClass(int id) {
         SQLiteDatabase db = this.getReadableDatabase();
         Cursor cursor = db.query(TABLE_SCHEDULE, null, COL_ID + " = ?",

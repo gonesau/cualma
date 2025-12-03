@@ -19,4 +19,35 @@
     <color name="friday">#FCE4EC</color>
     <color name="saturday">#E0F2F1</color>
     <color name="sunday">#FFF9C4</color>
+
+    <!-- Add this line to fix the error -->
+    <color name="purple_500">#FF6200EE</color>
+
+    <!-- You can also add other related colors if you plan to use them -->
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_700">#FF3700B3</color>
+
+
+    <!-- It might already contain other colors like black and white -->
+    <!-- <color name="black">#FF000000</color> -->
+
+    <!-- <color name="white">#FFFFFFFF</color> -->
+
+
+    <!-- It might already contain other colors like black and white -->
+    <!-- <color name="black">#FF000000</color> -->
+
+    <!-- <color name="white">#FFFFFFFF</color> -->
+
+
+    <!-- It might already contain other colors like black and white -->
+    <!-- <color name="black">#FF000000</color> -->
+
+    <!-- <color name="white">#FFFFFFFF</color> -->
+
+
+    <!-- It might already contain other colors like black and white -->
+    <!-- <color name="black">#FF000000</color> -->
+
+    <!-- <color name="white">#FFFFFFFF</color> -->
 </resources>

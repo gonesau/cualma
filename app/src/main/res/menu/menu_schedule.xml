@@ -3,15 +3,21 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/action_search"
+        android:title="Buscar"
+        android:icon="@android:drawable/ic_menu_search"
+        app:showAsAction="ifRoom|collapseActionView"
+        app:actionViewClass="androidx.appcompat.widget.SearchView" />
+
+    <item
         android:id="@+id/action_calendar"
-        android:title="@string/view_calendar"
+        android:title="Ver Calendario"
         android:icon="@drawable/ic_schedule"
         app:showAsAction="ifRoom" />
 
     <item
         android:id="@+id/action_download"
-        android:title="@string/download_schedule"
+        android:title="Descargar"
         android:icon="@drawable/ic_download"
         app:showAsAction="ifRoom" />
-
 </menu>
