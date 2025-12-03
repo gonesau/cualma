@@ -1,17 +1,11 @@
 package com.example.cualma;
 
-import android.app.Activity;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.net.Uri;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.Toast;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.SearchView;
+import androidx.appcompat.widget.SearchView; // Importante para la búsqueda
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -19,8 +13,7 @@ import com.example.cualma.adapters.ClassAdapter;
 import com.example.cualma.database.ClassSchedule;
 import com.example.cualma.database.DatabaseHelper;
 import com.example.cualma.utils.ScheduleExporter;
-// CAMBIO IMPORTANTE: Importamos el botón Extendido
-import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import java.util.List;
 
 public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.OnClassClickListener {
@@ -28,12 +21,7 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
     private RecyclerView recyclerView;
     private ClassAdapter adapter;
     private DatabaseHelper dbHelper;
-    // CAMBIO IMPORTANTE: Cambiamos el tipo de variable aquí
-    private ExtendedFloatingActionButton fabAdd;
-
-    // Launcher para guardar archivo
-    private ActivityResultLauncher<Intent> saveFileLauncher;
-    private Bitmap pendingBitmapToSave; // Variable temporal
+    private FloatingActionButton fabAdd;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,21 +30,19 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle("Mi Horario");
-        }
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setTitle("Mi Horario");
 
         dbHelper = new DatabaseHelper(this);
+
         initViews();
         setupRecyclerView();
+        loadClasses();
         setupClickListeners();
-        setupFilePicker(); // Configurar el selector de archivos
     }
 
     private void initViews() {
         recyclerView = findViewById(R.id.recyclerView);
-        // Ahora el casting será correcto porque la variable es del mismo tipo que el XML
         fabAdd = findViewById(R.id.fabAdd);
     }
 
@@ -64,63 +50,18 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         adapter = new ClassAdapter(this, this);
         recyclerView.setAdapter(adapter);
-
-        // Opcional: Hacer que el botón se encoja al hacer scroll para dar efecto elegante
-        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                if (dy > 0 && fabAdd.isExtended()) {
-                    fabAdd.shrink();
-                } else if (dy < 0 && !fabAdd.isExtended()) {
-                    fabAdd.extend();
-                }
-            }
-        });
-    }
-
-    private void setupClickListeners() {
-        fabAdd.setOnClickListener(v -> {
-            startActivity(new Intent(this, AddEditClassActivity.class));
-        });
-    }
-
-    // Configuración del Selector de Archivos
-    private void setupFilePicker() {
-        saveFileLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                result -> {
-                    if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
-                        Uri uri = result.getData().getData();
-                        if (uri != null && pendingBitmapToSave != null) {
-                            ScheduleExporter.saveBitmapToUri(this, pendingBitmapToSave, uri);
-                        }
-                    } else {
-                        Toast.makeText(this, "Guardado cancelado", Toast.LENGTH_SHORT).show();
-                    }
-                }
-        );
-    }
-
-    private void initiateSaveProcess() {
-        if (adapter.getItemCount() == 0) {
-            Toast.makeText(this, "No hay clases para exportar", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // 1. Generar Bitmap
-        pendingBitmapToSave = ScheduleExporter.captureRecyclerView(recyclerView);
-
-        // 2. Abrir selector de archivos (Storage Access Framework)
-        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("image/png");
-        intent.putExtra(Intent.EXTRA_TITLE, "MiHorario_CualMa.png");
-        saveFileLauncher.launch(intent);
     }
 
     private void loadClasses() {
         List<ClassSchedule> classes = dbHelper.getAllClasses();
         adapter.setClasses(classes);
+    }
+
+    private void setupClickListeners() {
+        fabAdd.setOnClickListener(v -> {
+            Intent intent = new Intent(this, AddEditClassActivity.class);
+            startActivity(intent);
+        });
     }
 
     @Override
@@ -133,38 +74,53 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
     @Override
     public void onClassDelete(ClassSchedule classSchedule) {
         dbHelper.deleteClass(classSchedule.getId());
-        loadClasses();
+        loadClasses(); // Recargar la lista después de borrar
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_schedule, menu);
 
+        // CONFIGURACIÓN DEL BUSCADOR
         MenuItem searchItem = menu.findItem(R.id.action_search);
         SearchView searchView = (SearchView) searchItem.getActionView();
-        searchView.setQueryHint("Buscar asignatura...");
+
+        // Configurar hint
+        searchView.setQueryHint("Buscar asignatura, aula...");
+
+        // Escuchar cambios en el texto
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
-            public boolean onQueryTextSubmit(String query) { adapter.getFilter().filter(query); return false; }
+            public boolean onQueryTextSubmit(String query) {
+                // Filtrar al presionar enter
+                adapter.getFilter().filter(query);
+                return false;
+            }
+
             @Override
-            public boolean onQueryTextChange(String newText) { adapter.getFilter().filter(newText); return false; }
+            public boolean onQueryTextChange(String newText) {
+                // Filtrar mientras se escribe
+                adapter.getFilter().filter(newText);
+                return false;
+            }
         });
+
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
+
         if (id == R.id.action_calendar) {
-            startActivity(new Intent(this, ScheduleCalendarActivity.class));
+            Intent intent = new Intent(this, ScheduleCalendarActivity.class);
+            startActivity(intent);
             return true;
         } else if (id == R.id.action_download) {
-            initiateSaveProcess();
-            return true;
-        } else if (id == android.R.id.home) { // Manejar botón atrás del Toolbar
-            finish();
+            ScheduleExporter.exportScheduleAsImage(this, dbHelper.getAllClasses());
             return true;
         }
+
         return super.onOptionsItemSelected(item);
     }
 
