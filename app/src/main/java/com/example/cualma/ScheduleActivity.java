@@ -10,7 +10,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.cualma.adapters.ClassAdapter;
 import com.example.cualma.database.ClassSchedule;
-import com.example.qualma.database.DatabaseHelper;
+import com.example.cualma.database.DatabaseHelper;
 import com.example.cualma.utils.ScheduleExporter;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import java.util.List;
@@ -83,7 +83,7 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
     }
 
     @Override
-    public boolean onOptionsItem(MenuItem item) {
+    public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
 
         if (id == R.id.action_calendar) {
@@ -95,7 +95,7 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
             return true;
         }
 
-        return super.onOptionsItem(item);
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
