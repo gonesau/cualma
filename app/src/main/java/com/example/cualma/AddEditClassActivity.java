@@ -2,22 +2,24 @@ package com.example.cualma;
 
 import android.app.TimePickerDialog;
 import android.os.Bundle;
+import android.view.MenuItem;
 import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.Button;
-import android.widget.EditText;
-import android.widget.Spinner;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import com.example.cualma.database.ClassSchedule;
 import com.example.cualma.database.DatabaseHelper;
 import com.example.cualma.utils.NotificationHelper;
+import com.google.android.material.textfield.TextInputEditText; // Importante
 import java.util.Locale;
 
 public class AddEditClassActivity extends AppCompatActivity {
 
-    private EditText etClassCode, etClassName, etStartTime, etEndTime, etClassroom, etTeacher;
-    private Spinner spinnerDay;
+    // Usamos los componentes de Material
+    private TextInputEditText etClassCode, etClassName, etStartTime, etEndTime, etClassroom, etTeacher;
+    private AutoCompleteTextView autoCompleteDay; // Reemplaza al Spinner
     private Button btnSave;
     private DatabaseHelper dbHelper;
     private int classId = -1;
@@ -29,20 +31,22 @@ public class AddEditClassActivity extends AppCompatActivity {
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setDisplayShowTitleEnabled(true);
+        }
 
         dbHelper = new DatabaseHelper(this);
-
         classId = getIntent().getIntExtra("class_id", -1);
 
         if (classId != -1) {
             getSupportActionBar().setTitle("Editar Clase");
         } else {
-            getSupportActionBar().setTitle("Agregar Clase");
+            getSupportActionBar().setTitle("Nueva Clase");
         }
 
         initViews();
-        setupSpinner();
+        setupDropdown(); // Configuración nueva del menú
         setupClickListeners();
 
         if (classId != -1) {
@@ -57,24 +61,32 @@ public class AddEditClassActivity extends AppCompatActivity {
         etEndTime = findViewById(R.id.etEndTime);
         etClassroom = findViewById(R.id.etClassroom);
         etTeacher = findViewById(R.id.etTeacher);
-        spinnerDay = findViewById(R.id.spinnerDay);
+        autoCompleteDay = findViewById(R.id.autoCompleteDay);
         btnSave = findViewById(R.id.btnSave);
     }
 
-    private void setupSpinner() {
+    private void setupDropdown() {
         String[] days = {"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, days);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerDay.setAdapter(adapter);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, days);
+        autoCompleteDay.setAdapter(adapter);
+        // Asegurar que muestre el primer elemento si está vacío o por defecto
+        if (autoCompleteDay.getText().toString().isEmpty()) {
+            autoCompleteDay.setText(days[0], false);
+        }
     }
 
     private void setupClickListeners() {
         etStartTime.setOnClickListener(v -> showTimePicker(etStartTime));
+        // Fix: Asegurar que el foco también dispare el picker
+        etStartTime.setOnFocusChangeListener((v, hasFocus) -> { if(hasFocus) showTimePicker(etStartTime); });
+
         etEndTime.setOnClickListener(v -> showTimePicker(etEndTime));
+        etEndTime.setOnFocusChangeListener((v, hasFocus) -> { if(hasFocus) showTimePicker(etEndTime); });
+
         btnSave.setOnClickListener(v -> saveClass());
     }
 
-    private void showTimePicker(EditText editText) {
+    private void showTimePicker(TextInputEditText editText) {
         TimePickerDialog timePickerDialog = new TimePickerDialog(this,
                 (view, hourOfDay, minute) -> {
                     String time = String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minute);
@@ -93,13 +105,8 @@ public class AddEditClassActivity extends AppCompatActivity {
             etClassroom.setText(classSchedule.getClassroom());
             etTeacher.setText(classSchedule.getTeacherName());
 
-            String[] days = {"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"};
-            for (int i = 0; i < days.length; i++) {
-                if (days[i].equals(classSchedule.getDay())) {
-                    spinnerDay.setSelection(i);
-                    break;
-                }
-            }
+            // Para el AutoCompleteTextView, seteamos el texto sin filtrar
+            autoCompleteDay.setText(classSchedule.getDay(), false);
         }
     }
 
@@ -110,11 +117,12 @@ public class AddEditClassActivity extends AppCompatActivity {
         String endTime = etEndTime.getText().toString().trim();
         String classroom = etClassroom.getText().toString().trim();
         String teacher = etTeacher.getText().toString().trim();
-        String day = spinnerDay.getSelectedItem().toString();
+        // Obtenemos el valor directamente del texto del AutoComplete
+        String day = autoCompleteDay.getText().toString();
 
         if (classCode.isEmpty() || className.isEmpty() || startTime.isEmpty() ||
-                endTime.isEmpty() || classroom.isEmpty() || teacher.isEmpty()) {
-            Toast.makeText(this, R.string.fill_all_fields, Toast.LENGTH_SHORT).show();
+                endTime.isEmpty() || classroom.isEmpty() || teacher.isEmpty() || day.isEmpty()) {
+            Toast.makeText(this, "Por favor completa todos los campos", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -126,28 +134,31 @@ public class AddEditClassActivity extends AppCompatActivity {
         if (classId != -1) {
             result = dbHelper.updateClass(classSchedule);
             if (result > 0) {
-                Toast.makeText(this, R.string.class_updated, Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Clase actualizada", Toast.LENGTH_SHORT).show();
                 NotificationHelper.scheduleClassNotification(this, classSchedule);
                 finish();
             } else {
-                Toast.makeText(this, R.string.error_saving, Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Error al actualizar", Toast.LENGTH_SHORT).show();
             }
         } else {
             result = dbHelper.insertClass(classSchedule);
             if (result > 0) {
-                Toast.makeText(this, R.string.class_added, Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Clase agregada", Toast.LENGTH_SHORT).show();
                 classSchedule.setId((int) result);
                 NotificationHelper.scheduleClassNotification(this, classSchedule);
                 finish();
             } else {
-                Toast.makeText(this, R.string.error_saving, Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Error al guardar", Toast.LENGTH_SHORT).show();
             }
         }
     }
 
     @Override
-    public boolean onSupportNavigateUp() {
-        finish();
-        return true;
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            finish();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 }

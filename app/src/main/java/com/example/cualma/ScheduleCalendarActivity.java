@@ -1,173 +1,159 @@
 package com.example.cualma;
 
-import android.graphics.Color;
+import android.content.Intent;
 import android.os.Bundle;
-import android.view.Gravity;
-import android.widget.LinearLayout;
-import android.widget.ScrollView;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.CalendarView;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.cardview.widget.CardView;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import com.example.cualma.adapters.ClassAdapter;
 import com.example.cualma.database.ClassSchedule;
 import com.example.cualma.database.DatabaseHelper;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
-import java.util.Map;
 
-public class ScheduleCalendarActivity extends AppCompatActivity {
+public class ScheduleCalendarActivity extends AppCompatActivity implements ClassAdapter.OnClassClickListener {
 
-    private LinearLayout calendarContainer;
+    private CalendarView calendarView;
+    private RecyclerView recyclerView;
+    private TextView tvSelectedDate, tvEmptyState;
+    private ClassAdapter adapter;
     private DatabaseHelper dbHelper;
-    private final String[] days = {"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"};
+    private List<ClassSchedule> allClasses;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_schedule_calendar);
 
+        // Configurar Toolbar
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setTitle("Calendario Semanal");
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setDisplayShowTitleEnabled(true);
+        }
 
         dbHelper = new DatabaseHelper(this);
-        calendarContainer = findViewById(R.id.calendarContainer);
+        initViews();
+        setupRecyclerView();
 
-        loadCalendar();
+        // Cargar todas las clases una vez para filtrar localmente
+        allClasses = dbHelper.getAllClasses();
+
+        // Configurar el listener del calendario
+        setupCalendarListener();
+
+        // Filtrar automáticamente para el día de hoy al abrir
+        filterClassesByDate(Calendar.getInstance());
     }
 
-    private void loadCalendar() {
-        List<ClassSchedule> classes = dbHelper.getAllClasses();
-        Map<String, Integer> dayColors = getDayColors();
+    private void initViews() {
+        calendarView = findViewById(R.id.calendarView);
+        recyclerView = findViewById(R.id.recyclerViewByDate);
+        tvSelectedDate = findViewById(R.id.tvSelectedDate);
+        tvEmptyState = findViewById(R.id.tvEmptyState);
+    }
 
-        for (String day : days) {
-            TextView dayHeader = new TextView(this);
-            dayHeader.setText(day);
-            dayHeader.setTextSize(20);
-            dayHeader.setTextColor(Color.WHITE);
-            dayHeader.setBackgroundColor(getResources().getColor(R.color.primary));
-            dayHeader.setPadding(32, 24, 32, 24);
-            dayHeader.setGravity(Gravity.CENTER);
-            LinearLayout.LayoutParams headerParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-            );
-            headerParams.setMargins(0, 16, 0, 8);
-            dayHeader.setLayoutParams(headerParams);
-            calendarContainer.addView(dayHeader);
+    private void setupRecyclerView() {
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        // Reutilizamos el adaptador existente
+        adapter = new ClassAdapter(this, this);
+        recyclerView.setAdapter(adapter);
+    }
 
-            boolean hasClasses = false;
-            for (ClassSchedule classSchedule : classes) {
-                if (classSchedule.getDay().equals(day)) {
-                    hasClasses = true;
-                    CardView card = createClassCard(classSchedule, dayColors.get(day));
-                    calendarContainer.addView(card);
-                }
+    private void setupCalendarListener() {
+        calendarView.setOnDateChangeListener((view, year, month, dayOfMonth) -> {
+            Calendar selectedDate = Calendar.getInstance();
+            selectedDate.set(year, month, dayOfMonth);
+            filterClassesByDate(selectedDate);
+        });
+    }
+
+    private void filterClassesByDate(Calendar date) {
+        // 1. Obtener el día de la semana (Ej: Calendar.MONDAY)
+        int dayOfWeek = date.get(Calendar.DAY_OF_WEEK);
+        String dayString = getDayString(dayOfWeek);
+
+        // Actualizar título
+        tvSelectedDate.setText("Clases del " + dayString);
+
+        // 2. Filtrar la lista
+        List<ClassSchedule> filteredList = new ArrayList<>();
+        for (ClassSchedule item : allClasses) {
+            // Comparamos ignorando mayúsculas/minúsculas
+            if (item.getDay().equalsIgnoreCase(dayString)) {
+                filteredList.add(item);
             }
+        }
 
-            if (!hasClasses) {
-                TextView noClasses = new TextView(this);
-                noClasses.setText("Sin clases programadas");
-                noClasses.setTextSize(14);
-                noClasses.setTextColor(Color.GRAY);
-                noClasses.setPadding(32, 16, 32, 16);
-                noClasses.setGravity(Gravity.CENTER);
-                calendarContainer.addView(noClasses);
-            }
+        // 3. Actualizar UI
+        if (filteredList.isEmpty()) {
+            recyclerView.setVisibility(View.GONE);
+            tvEmptyState.setVisibility(View.VISIBLE);
+        } else {
+            recyclerView.setVisibility(View.VISIBLE);
+            tvEmptyState.setVisibility(View.GONE);
+            adapter.setClasses(filteredList);
         }
     }
 
-    private CardView createClassCard(ClassSchedule classSchedule, int backgroundColor) {
-        CardView card = new CardView(this);
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        cardParams.setMargins(16, 8, 16, 8);
-        card.setLayoutParams(cardParams);
-        card.setCardElevation(4);
-        card.setRadius(16);
-        card.setCardBackgroundColor(backgroundColor);
-
-        LinearLayout cardContent = new LinearLayout(this);
-        cardContent.setOrientation(LinearLayout.VERTICAL);
-        cardContent.setPadding(24, 24, 24, 24);
-
-        TextView tvClassName = new TextView(this);
-        tvClassName.setText(classSchedule.getClassName());
-        tvClassName.setTextSize(18);
-        tvClassName.setTextColor(Color.parseColor("#212121"));
-        tvClassName.setTypeface(null, android.graphics.Typeface.BOLD);
-        cardContent.addView(tvClassName);
-
-        TextView tvClassCode = new TextView(this);
-        tvClassCode.setText(classSchedule.getClassCode());
-        tvClassCode.setTextSize(14);
-        tvClassCode.setTextColor(Color.parseColor("#757575"));
-        LinearLayout.LayoutParams codeParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        codeParams.setMargins(0, 8, 0, 0);
-        tvClassCode.setLayoutParams(codeParams);
-        cardContent.addView(tvClassCode);
-
-        TextView tvTime = new TextView(this);
-        tvTime.setText("⏰ " + classSchedule.getStartTime() + " - " + classSchedule.getEndTime());
-        tvTime.setTextSize(14);
-        tvTime.setTextColor(Color.parseColor("#212121"));
-        LinearLayout.LayoutParams timeParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        timeParams.setMargins(0, 12, 0, 0);
-        tvTime.setLayoutParams(timeParams);
-        cardContent.addView(tvTime);
-
-        TextView tvClassroom = new TextView(this);
-        tvClassroom.setText("📍 Aula: " + classSchedule.getClassroom());
-        tvClassroom.setTextSize(14);
-        tvClassroom.setTextColor(Color.parseColor("#212121"));
-        LinearLayout.LayoutParams classroomParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        classroomParams.setMargins(0, 8, 0, 0);
-        tvClassroom.setLayoutParams(classroomParams);
-        cardContent.addView(tvClassroom);
-
-        TextView tvTeacher = new TextView(this);
-        tvTeacher.setText("👤 " + classSchedule.getTeacherName());
-        tvTeacher.setTextSize(14);
-        tvTeacher.setTextColor(Color.parseColor("#212121"));
-        LinearLayout.LayoutParams teacherParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        teacherParams.setMargins(0, 8, 0, 0);
-        tvTeacher.setLayoutParams(teacherParams);
-        cardContent.addView(tvTeacher);
-
-        card.addView(cardContent);
-        return card;
+    // Método auxiliar para traducir Calendar.DAY_OF_WEEK a tus Strings de DB
+    private String getDayString(int calendarDay) {
+        switch (calendarDay) {
+            case Calendar.MONDAY: return "Lunes";
+            case Calendar.TUESDAY: return "Martes";
+            case Calendar.WEDNESDAY: return "Miércoles";
+            case Calendar.THURSDAY: return "Jueves";
+            case Calendar.FRIDAY: return "Viernes";
+            case Calendar.SATURDAY: return "Sábado";
+            case Calendar.SUNDAY: return "Domingo";
+            default: return "";
+        }
     }
 
-    private Map<String, Integer> getDayColors() {
-        Map<String, Integer> colors = new HashMap<>();
-        colors.put("Lunes", Color.parseColor("#E3F2FD"));
-        colors.put("Martes", Color.parseColor("#F3E5F5"));
-        colors.put("Miércoles", Color.parseColor("#E8F5E9"));
-        colors.put("Jueves", Color.parseColor("#FFF3E0"));
-        colors.put("Viernes", Color.parseColor("#FCE4EC"));
-        colors.put("Sábado", Color.parseColor("#E0F2F1"));
-        colors.put("Domingo", Color.parseColor("#FFF9C4"));
-        return colors;
+    // Implementación de la interfaz del adaptador (puedes decidir si permitir editar desde aquí)
+    @Override
+    public void onClassClick(ClassSchedule classSchedule) {
+        // Opción: Abrir detalles para editar
+        Intent intent = new Intent(this, AddEditClassActivity.class);
+        intent.putExtra("class_id", classSchedule.getId());
+        startActivity(intent);
     }
 
     @Override
-    public boolean onSupportNavigateUp() {
-        finish();
-        return true;
+    public void onClassDelete(ClassSchedule classSchedule) {
+        // Opción: Permitir borrar desde el calendario
+        dbHelper.deleteClass(classSchedule.getId());
+        // Recargar datos y volver a filtrar
+        allClasses = dbHelper.getAllClasses();
+        // Truco: Forzar re-filtrado obteniendo la fecha actual del calendarView
+        Calendar currentDate = Calendar.getInstance();
+        currentDate.setTimeInMillis(calendarView.getDate());
+        filterClassesByDate(currentDate);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            finish();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Recargar datos por si se editó algo en otra pantalla
+        allClasses = dbHelper.getAllClasses();
+        Calendar currentDate = Calendar.getInstance();
+        currentDate.setTimeInMillis(calendarView.getDate());
+        filterClassesByDate(currentDate);
     }
 }

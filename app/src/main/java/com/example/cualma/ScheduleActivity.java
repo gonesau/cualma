@@ -19,7 +19,8 @@ import com.example.cualma.adapters.ClassAdapter;
 import com.example.cualma.database.ClassSchedule;
 import com.example.cualma.database.DatabaseHelper;
 import com.example.cualma.utils.ScheduleExporter;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
+// CAMBIO IMPORTANTE: Importamos el botón Extendido
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import java.util.List;
 
 public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.OnClassClickListener {
@@ -27,7 +28,8 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
     private RecyclerView recyclerView;
     private ClassAdapter adapter;
     private DatabaseHelper dbHelper;
-    private FloatingActionButton fabAdd;
+    // CAMBIO IMPORTANTE: Cambiamos el tipo de variable aquí
+    private ExtendedFloatingActionButton fabAdd;
 
     // Launcher para guardar archivo
     private ActivityResultLauncher<Intent> saveFileLauncher;
@@ -40,8 +42,10 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setTitle("Mi Horario");
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setTitle("Mi Horario");
+        }
 
         dbHelper = new DatabaseHelper(this);
         initViews();
@@ -52,6 +56,7 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
 
     private void initViews() {
         recyclerView = findViewById(R.id.recyclerView);
+        // Ahora el casting será correcto porque la variable es del mismo tipo que el XML
         fabAdd = findViewById(R.id.fabAdd);
     }
 
@@ -59,6 +64,18 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         adapter = new ClassAdapter(this, this);
         recyclerView.setAdapter(adapter);
+
+        // Opcional: Hacer que el botón se encoja al hacer scroll para dar efecto elegante
+        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                if (dy > 0 && fabAdd.isExtended()) {
+                    fabAdd.shrink();
+                } else if (dy < 0 && !fabAdd.isExtended()) {
+                    fabAdd.extend();
+                }
+            }
+        });
     }
 
     private void setupClickListeners() {
@@ -67,7 +84,7 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
         });
     }
 
-    // Configuración del Selector de Archivos (Nuevo)
+    // Configuración del Selector de Archivos
     private void setupFilePicker() {
         saveFileLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
@@ -106,7 +123,6 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
         adapter.setClasses(classes);
     }
 
-    // ... (Mantén onClassClick y onClassDelete iguales)
     @Override
     public void onClassClick(ClassSchedule classSchedule) {
         Intent intent = new Intent(this, AddEditClassActivity.class);
@@ -119,7 +135,6 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
         dbHelper.deleteClass(classSchedule.getId());
         loadClasses();
     }
-    // ...
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -144,8 +159,10 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
             startActivity(new Intent(this, ScheduleCalendarActivity.class));
             return true;
         } else if (id == R.id.action_download) {
-            // Llamar al nuevo proceso de guardado
             initiateSaveProcess();
+            return true;
+        } else if (id == android.R.id.home) { // Manejar botón atrás del Toolbar
+            finish();
             return true;
         }
         return super.onOptionsItemSelected(item);

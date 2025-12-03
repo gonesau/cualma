@@ -1,35 +1,82 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:background="#F8F9FA"
+    tools:context=".ScheduleCalendarActivity">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
 
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="@color/primary"
-            app:titleTextColor="@color/white" />
-
+            app:navigationIcon="@drawable/ic_launcher_foreground"
+            app:title="Calendario Académico"
+            app:titleCentered="true"
+            app:titleTextColor="@android:color/black"/>
     </com.google.android.material.appbar.AppBarLayout>
 
-    <ScrollView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/gray_light">
+        android:orientation="vertical"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:padding="16dp">
 
-        <LinearLayout
-            android:id="@+id/calendarContainer"
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingBottom="16dp" />
+            app:cardCornerRadius="24dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="@android:color/white"
+            app:strokeWidth="0dp"
+            android:layout_marginBottom="24dp">
 
-    </ScrollView>
+            <CalendarView
+                android:id="@+id/calendarView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:theme="@style/Theme.CualMa"
+                android:dateTextAppearance="@style/TextAppearance.AppCompat.Medium"
+                android:weekDayTextAppearance="@style/TextAppearance.AppCompat.Small"/>
+        </com.google.android.material.card.MaterialCardView>
 
-</LinearLayout>
+        <TextView
+            android:id="@+id/tvSelectedDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Clases del día"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@color/purple_500"
+            android:layout_marginStart="8dp"
+            android:layout_marginBottom="12dp"/>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerViewByDate"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"/>
+
+        <TextView
+            android:id="@+id/tvEmptyState"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="No hay clases programadas para este día"
+            android:gravity="center"
+            android:visibility="gone"
+            android:textColor="@android:color/darker_gray"
+            android:layout_marginTop="32dp"/>
+
+    </LinearLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
