@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#2196F3</color>
+    <color name="primary_dark">#1976D2</color>
+    <color name="accent">#FF5722</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="gray_light">#F5F5F5</color>
+    <color name="gray">#9E9E9E</color>
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    <color name="card_background">#FFFFFF</color>
+
+    <!-- Colores para días de la semana -->
+    <color name="monday">#E3F2FD</color>
+    <color name="tuesday">#F3E5F5</color>
+    <color name="wednesday">#E8F5E9</color>
+    <color name="thursday">#FFF3E0</color>
+    <color name="friday">#FCE4EC</color>
+    <color name="saturday">#E0F2F1</color>
+    <color name="sunday">#FFF9C4</color>
+</resources>

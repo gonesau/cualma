@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CualMa?</string>
+
+    <!-- Dashboard -->
+    <string name="welcome">Bienvenido</string>
+    <string name="my_profile">Mi Perfil</string>
+    <string name="my_schedule">Mi Horario</string>
+    <string name="settings">Configuración</string>
+
+    <!-- Student Profile -->
+    <string name="student_data">Datos del Estudiante</string>
+    <string name="carnet">Carnet</string>
+    <string name="name">Nombre</string>
+    <string name="lastname">Apellidos</string>
+    <string name="career">Carrera</string>
+    <string name="birth_date">Fecha de Nacimiento</string>
+    <string name="email">Email</string>
+    <string name="update_data">Actualizar Datos</string>
+    <string name="save">Guardar</string>
+    <string name="cancel">Cancelar</string>
+
+    <!-- Schedule -->
+    <string name="schedule">Horario</string>
+    <string name="add_class">Agregar Clase</string>
+    <string name="class_code">Código Materia</string>
+    <string name="class_name">Nombre Materia</string>
+    <string name="start_time">Hora Entrada</string>
+    <string name="end_time">Hora Salida</string>
+    <string name="classroom">Aula</string>
+    <string name="teacher_name">Nombre del Docente</string>
+    <string name="day">Día</string>
+    <string name="edit_class">Editar Clase</string>
+    <string name="delete_class">Eliminar Clase</string>
+    <string name="download_schedule">Descargar Horario</string>
+    <string name="view_calendar">Ver Calendario</string>
+
+    <!-- Days -->
+    <string name="monday">Lunes</string>
+    <string name="tuesday">Martes</string>
+    <string name="wednesday">Miércoles</string>
+    <string name="thursday">Jueves</string>
+    <string name="friday">Viernes</string>
+    <string name="saturday">Sábado</string>
+    <string name="sunday">Domingo</string>
+
+    <!-- Notifications -->
+    <string name="class_reminder">Recordatorio de Clase</string>
+    <string name="class_starts_in">Tu clase comienza en 10 minutos</string>
+
+    <!-- Messages -->
+    <string name="data_saved">Datos guardados exitosamente</string>
+    <string name="data_updated">Datos actualizados exitosamente</string>
+    <string name="class_added">Clase agregada exitosamente</string>
+    <string name="class_updated">Clase actualizada exitosamente</string>
+    <string name="class_deleted">Clase eliminada exitosamente</string>
+    <string name="error_saving">Error al guardar los datos</string>
+    <string name="fill_all_fields">Por favor complete todos los campos</string>
+    <string name="schedule_exported">Horario exportado exitosamente</string>
+</resources>
