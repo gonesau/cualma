@@ -6,6 +6,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.CalendarView;
 import android.widget.TextView;
+import android.widget.Toast;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -13,6 +15,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.cualma.adapters.ClassAdapter;
 import com.example.cualma.database.ClassSchedule;
 import com.example.cualma.database.DatabaseHelper;
+import com.example.cualma.utils.NotificationHelper;
+import com.example.cualma.utils.SessionManager;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
@@ -24,7 +28,9 @@ public class ScheduleCalendarActivity extends AppCompatActivity implements Class
     private TextView tvSelectedDate, tvEmptyState;
     private ClassAdapter adapter;
     private DatabaseHelper dbHelper;
+    private SessionManager sessionManager;
     private List<ClassSchedule> allClasses;
+    private String currentCarnet;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,11 +46,23 @@ public class ScheduleCalendarActivity extends AppCompatActivity implements Class
         }
 
         dbHelper = new DatabaseHelper(this);
+        sessionManager = new SessionManager(this);
+
+        // IMPORTANTE: Obtener el carnet del usuario actual
+        currentCarnet = sessionManager.getCarnet();
+
+        // Verificar sesión activa
+        if (currentCarnet == null || !sessionManager.isLoggedIn()) {
+            Toast.makeText(this, "Sesión inválida", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
         initViews();
         setupRecyclerView();
 
-        // Cargar todas las clases una vez para filtrar localmente
-        allClasses = dbHelper.getAllClasses();
+        // MODIFICADO: Cargar solo las clases del usuario actual
+        allClasses = dbHelper.getAllClassesByStudent(currentCarnet);
 
         // Configurar el listener del calendario
         setupCalendarListener();
@@ -62,7 +80,6 @@ public class ScheduleCalendarActivity extends AppCompatActivity implements Class
 
     private void setupRecyclerView() {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        // Reutilizamos el adaptador existente
         adapter = new ClassAdapter(this, this);
         recyclerView.setAdapter(adapter);
     }
@@ -76,23 +93,18 @@ public class ScheduleCalendarActivity extends AppCompatActivity implements Class
     }
 
     private void filterClassesByDate(Calendar date) {
-        // 1. Obtener el día de la semana (Ej: Calendar.MONDAY)
         int dayOfWeek = date.get(Calendar.DAY_OF_WEEK);
         String dayString = getDayString(dayOfWeek);
 
-        // Actualizar título
         tvSelectedDate.setText("Clases del " + dayString);
 
-        // 2. Filtrar la lista
         List<ClassSchedule> filteredList = new ArrayList<>();
         for (ClassSchedule item : allClasses) {
-            // Comparamos ignorando mayúsculas/minúsculas
             if (item.getDay().equalsIgnoreCase(dayString)) {
                 filteredList.add(item);
             }
         }
 
-        // 3. Actualizar UI
         if (filteredList.isEmpty()) {
             recyclerView.setVisibility(View.GONE);
             tvEmptyState.setVisibility(View.VISIBLE);
@@ -103,7 +115,6 @@ public class ScheduleCalendarActivity extends AppCompatActivity implements Class
         }
     }
 
-    // Método auxiliar para traducir Calendar.DAY_OF_WEEK a tus Strings de DB
     private String getDayString(int calendarDay) {
         switch (calendarDay) {
             case Calendar.MONDAY: return "Lunes";
@@ -117,10 +128,8 @@ public class ScheduleCalendarActivity extends AppCompatActivity implements Class
         }
     }
 
-    // Implementación de la interfaz del adaptador (puedes decidir si permitir editar desde aquí)
     @Override
     public void onClassClick(ClassSchedule classSchedule) {
-        // Opción: Abrir detalles para editar
         Intent intent = new Intent(this, AddEditClassActivity.class);
         intent.putExtra("class_id", classSchedule.getId());
         startActivity(intent);
@@ -128,14 +137,41 @@ public class ScheduleCalendarActivity extends AppCompatActivity implements Class
 
     @Override
     public void onClassDelete(ClassSchedule classSchedule) {
-        // Opción: Permitir borrar desde el calendario
-        dbHelper.deleteClass(classSchedule.getId());
-        // Recargar datos y volver a filtrar
-        allClasses = dbHelper.getAllClasses();
-        // Truco: Forzar re-filtrado obteniendo la fecha actual del calendarView
-        Calendar currentDate = Calendar.getInstance();
-        currentDate.setTimeInMillis(calendarView.getDate());
-        filterClassesByDate(currentDate);
+        showDeleteConfirmationDialog(classSchedule);
+    }
+
+    private void showDeleteConfirmationDialog(ClassSchedule classSchedule) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Confirmar eliminación");
+        builder.setMessage("¿Estás seguro que deseas eliminar la clase \"" +
+                classSchedule.getClassName() + "\"?\n\n" +
+                "Esta acción no se puede deshacer.");
+        builder.setIcon(android.R.drawable.ic_dialog_alert);
+
+        builder.setPositiveButton("Sí, eliminar", (dialog, which) -> {
+            // Cancelar la notificación de esta clase
+            NotificationHelper.cancelClassNotification(this, classSchedule.getId());
+
+            // MODIFICADO: Eliminar verificando el propietario
+            dbHelper.deleteClass(classSchedule.getId(), currentCarnet);
+
+            // Recargar datos del usuario actual
+            allClasses = dbHelper.getAllClassesByStudent(currentCarnet);
+
+            // Volver a filtrar para la fecha actual
+            Calendar currentDate = Calendar.getInstance();
+            currentDate.setTimeInMillis(calendarView.getDate());
+            filterClassesByDate(currentDate);
+
+            Toast.makeText(this, "Clase eliminada exitosamente", Toast.LENGTH_SHORT).show();
+        });
+
+        builder.setNegativeButton("Cancelar", (dialog, which) -> {
+            dialog.dismiss();
+        });
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
     }
 
     @Override
@@ -150,8 +186,8 @@ public class ScheduleCalendarActivity extends AppCompatActivity implements Class
     @Override
     protected void onResume() {
         super.onResume();
-        // Recargar datos por si se editó algo en otra pantalla
-        allClasses = dbHelper.getAllClasses();
+        // MODIFICADO: Recargar solo las clases del usuario actual
+        allClasses = dbHelper.getAllClassesByStudent(currentCarnet);
         Calendar currentDate = Calendar.getInstance();
         currentDate.setTimeInMillis(calendarView.getDate());
         filterClassesByDate(currentDate);

@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 import com.example.cualma.database.DatabaseHelper;
@@ -15,7 +16,7 @@ public class DashboardActivity extends AppCompatActivity {
 
     private TextView tvWelcome;
     private CardView cardProfile, cardSchedule;
-    private Button btnLogout;
+    private Button btnExit;
     private DatabaseHelper dbHelper;
     private SessionManager sessionManager;
 
@@ -48,7 +49,7 @@ public class DashboardActivity extends AppCompatActivity {
         tvWelcome = findViewById(R.id.tvWelcome);
         cardProfile = findViewById(R.id.cardProfile);
         cardSchedule = findViewById(R.id.cardSchedule);
-        btnLogout = findViewById(R.id.btnLogout);
+        btnExit = findViewById(R.id.btnExit);
     }
 
     private void loadStudentData() {
@@ -74,7 +75,47 @@ public class DashboardActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        btnLogout.setOnClickListener(v -> logout());
+        btnExit.setOnClickListener(v -> showExitDialog());
+    }
+
+    private void showExitDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Salir de la aplicación");
+        builder.setMessage("¿Qué deseas hacer?");
+
+        builder.setPositiveButton("Cerrar sesión", (dialog, which) -> {
+            showLogoutConfirmationDialog();
+        });
+
+        builder.setNegativeButton("Solo salir", (dialog, which) -> {
+            // Salir sin cerrar sesión
+            finishAffinity(); // Cierra todas las actividades
+        });
+
+        builder.setNeutralButton("Cancelar", (dialog, which) -> {
+            dialog.dismiss();
+        });
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+    private void showLogoutConfirmationDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Confirmar cierre de sesión");
+        builder.setMessage("¿Estás seguro que deseas cerrar sesión? Deberás iniciar sesión nuevamente la próxima vez.");
+        builder.setIcon(android.R.drawable.ic_dialog_alert);
+
+        builder.setPositiveButton("Sí, cerrar sesión", (dialog, which) -> {
+            logout();
+        });
+
+        builder.setNegativeButton("Cancelar", (dialog, which) -> {
+            dialog.dismiss();
+        });
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
     }
 
     private void logout() {
@@ -95,5 +136,11 @@ public class DashboardActivity extends AppCompatActivity {
 
         // Reprogramar notificaciones por si hubo cambios en el horario
         NotificationHelper.scheduleAllNotificationsForCurrentUser(this);
+    }
+
+    @Override
+    public void onBackPressed() {
+        // Interceptar el botón de retroceso para mostrar el diálogo de salida
+        showExitDialog();
     }
 }

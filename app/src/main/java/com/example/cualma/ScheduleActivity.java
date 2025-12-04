@@ -10,6 +10,7 @@ import android.view.MenuItem;
 import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SearchView;
 import androidx.appcompat.widget.Toolbar;
@@ -20,6 +21,7 @@ import com.example.cualma.database.ClassSchedule;
 import com.example.cualma.database.DatabaseHelper;
 import com.example.cualma.utils.NotificationHelper;
 import com.example.cualma.utils.ScheduleExporter;
+import com.example.cualma.utils.SessionManager;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import java.util.List;
 
@@ -28,9 +30,11 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
     private RecyclerView recyclerView;
     private ClassAdapter adapter;
     private DatabaseHelper dbHelper;
+    private SessionManager sessionManager;
     private ExtendedFloatingActionButton fabAdd;
     private ActivityResultLauncher<Intent> saveFileLauncher;
     private Bitmap pendingBitmapToSave;
+    private String currentCarnet;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,6 +49,18 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
         }
 
         dbHelper = new DatabaseHelper(this);
+        sessionManager = new SessionManager(this);
+
+        // IMPORTANTE: Obtener el carnet del usuario actual
+        currentCarnet = sessionManager.getCarnet();
+
+        // Verificar sesión activa
+        if (currentCarnet == null || !sessionManager.isLoggedIn()) {
+            Toast.makeText(this, "Sesión inválida", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
         initViews();
         setupRecyclerView();
         setupClickListeners();
@@ -111,7 +127,8 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
     }
 
     private void loadClasses() {
-        List<ClassSchedule> classes = dbHelper.getAllClasses();
+        // MODIFICADO: Cargar solo las clases del usuario actual
+        List<ClassSchedule> classes = dbHelper.getAllClassesByStudent(currentCarnet);
         adapter.setClasses(classes);
     }
 
@@ -124,14 +141,34 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
 
     @Override
     public void onClassDelete(ClassSchedule classSchedule) {
-        // Cancelar la notificación de esta clase
-        NotificationHelper.cancelClassNotification(this, classSchedule.getId());
+        showDeleteConfirmationDialog(classSchedule);
+    }
 
-        // Eliminar de la base de datos
-        dbHelper.deleteClass(classSchedule.getId());
-        loadClasses();
+    private void showDeleteConfirmationDialog(ClassSchedule classSchedule) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Confirmar eliminación");
+        builder.setMessage("¿Estás seguro que deseas eliminar la clase \"" +
+                classSchedule.getClassName() + "\"?\n\n" +
+                "Esta acción no se puede deshacer.");
+        builder.setIcon(android.R.drawable.ic_dialog_alert);
 
-        Toast.makeText(this, "Clase eliminada", Toast.LENGTH_SHORT).show();
+        builder.setPositiveButton("Sí, eliminar", (dialog, which) -> {
+            // Cancelar la notificación de esta clase
+            NotificationHelper.cancelClassNotification(this, classSchedule.getId());
+
+            // MODIFICADO: Eliminar verificando el propietario
+            dbHelper.deleteClass(classSchedule.getId(), currentCarnet);
+            loadClasses();
+
+            Toast.makeText(this, "Clase eliminada exitosamente", Toast.LENGTH_SHORT).show();
+        });
+
+        builder.setNegativeButton("Cancelar", (dialog, which) -> {
+            dialog.dismiss();
+        });
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
     }
 
     @Override

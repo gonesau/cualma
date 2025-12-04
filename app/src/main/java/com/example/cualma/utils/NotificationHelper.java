@@ -55,7 +55,9 @@ public class NotificationHelper {
 
         String carnet = sessionManager.getCarnet();
         DatabaseHelper dbHelper = new DatabaseHelper(context);
-        List<ClassSchedule> classes = dbHelper.getAllClasses();
+
+        // MODIFICADO: Obtener solo las clases del usuario actual
+        List<ClassSchedule> classes = dbHelper.getAllClassesByStudent(carnet);
 
         Log.d(TAG, "Programando " + classes.size() + " notificaciones para " + carnet);
 
@@ -178,7 +180,7 @@ public class NotificationHelper {
     }
 
     /**
-     * Cancela todas las notificaciones programadas
+     * Cancela todas las notificaciones programadas del usuario actual
      */
     public static void cancelAllNotifications(Context context) {
         SessionManager sessionManager = new SessionManager(context);
@@ -190,7 +192,9 @@ public class NotificationHelper {
         }
 
         DatabaseHelper dbHelper = new DatabaseHelper(context);
-        List<ClassSchedule> classes = dbHelper.getAllClasses();
+
+        // MODIFICADO: Obtener solo las clases del usuario actual
+        List<ClassSchedule> classes = dbHelper.getAllClassesByStudent(carnet);
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
 
         if (alarmManager == null) return;
@@ -267,7 +271,7 @@ public class NotificationHelper {
 
             // Obtener datos del estudiante
             DatabaseHelper dbHelper = new DatabaseHelper(context);
-            Student student = dbHelper.getStudent();
+            Student student = dbHelper.getStudentByCarnet(currentCarnet);
 
             String studentName = student != null ? student.getName().split(" ")[0] : "Estudiante";
             String className = intent.getStringExtra("class_name");

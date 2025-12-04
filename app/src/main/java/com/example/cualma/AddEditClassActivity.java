@@ -24,6 +24,7 @@ public class AddEditClassActivity extends AppCompatActivity {
     private DatabaseHelper dbHelper;
     private SessionManager sessionManager;
     private int classId = -1;
+    private String currentCarnet;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,6 +40,17 @@ public class AddEditClassActivity extends AppCompatActivity {
 
         dbHelper = new DatabaseHelper(this);
         sessionManager = new SessionManager(this);
+
+        // IMPORTANTE: Obtener el carnet del usuario actual
+        currentCarnet = sessionManager.getCarnet();
+
+        // Verificar sesión activa
+        if (currentCarnet == null || !sessionManager.isLoggedIn()) {
+            Toast.makeText(this, "Sesión inválida", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
         classId = getIntent().getIntExtra("class_id", -1);
 
         if (classId != -1) {
@@ -100,7 +112,9 @@ public class AddEditClassActivity extends AppCompatActivity {
     }
 
     private void loadClassData() {
-        ClassSchedule classSchedule = dbHelper.getClass(classId);
+        // MODIFICADO: Verificar que la clase pertenezca al usuario actual
+        ClassSchedule classSchedule = dbHelper.getClass(classId, currentCarnet);
+
         if (classSchedule != null) {
             etClassCode.setText(classSchedule.getClassCode());
             etClassName.setText(classSchedule.getClassName());
@@ -109,6 +123,10 @@ public class AddEditClassActivity extends AppCompatActivity {
             etClassroom.setText(classSchedule.getClassroom());
             etTeacher.setText(classSchedule.getTeacherName());
             autoCompleteDay.setText(classSchedule.getDay(), false);
+        } else {
+            // Si no encuentra la clase o no pertenece al usuario, mostrar error y cerrar
+            Toast.makeText(this, "No tienes permiso para editar esta clase", Toast.LENGTH_SHORT).show();
+            finish();
         }
     }
 
@@ -131,22 +149,23 @@ public class AddEditClassActivity extends AppCompatActivity {
                 classId, classCode, className, startTime, endTime, classroom, teacher, day
         );
 
-        String carnet = sessionManager.getCarnet();
         long result;
 
         if (classId != -1) {
-            result = dbHelper.updateClass(classSchedule);
+            // MODIFICADO: Actualizar con verificación de propietario
+            result = dbHelper.updateClass(classSchedule, currentCarnet);
             if (result > 0) {
                 Toast.makeText(this, "Clase actualizada", Toast.LENGTH_SHORT).show();
 
                 // Reprogramar notificación para esta clase
-                NotificationHelper.scheduleClassNotification(this, classSchedule, carnet);
+                NotificationHelper.scheduleClassNotification(this, classSchedule, currentCarnet);
                 finish();
             } else {
-                Toast.makeText(this, "Error al actualizar", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Error al actualizar o no tienes permiso", Toast.LENGTH_SHORT).show();
             }
         } else {
-            result = dbHelper.insertClass(classSchedule);
+            // MODIFICADO: Insertar asociando al usuario actual
+            result = dbHelper.insertClass(classSchedule, currentCarnet);
             if (result > 0) {
                 Toast.makeText(this, "Clase agregada", Toast.LENGTH_SHORT).show();
 
@@ -154,7 +173,7 @@ public class AddEditClassActivity extends AppCompatActivity {
                 classSchedule.setId((int) result);
 
                 // Programar notificación para esta nueva clase
-                NotificationHelper.scheduleClassNotification(this, classSchedule, carnet);
+                NotificationHelper.scheduleClassNotification(this, classSchedule, currentCarnet);
                 finish();
             } else {
                 Toast.makeText(this, "Error al guardar", Toast.LENGTH_SHORT).show();

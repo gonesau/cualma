@@ -108,13 +108,15 @@
     </GridLayout>
 
     <Button
-        android:id="@+id/btnLogout"
+        android:id="@+id/btnExit"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:text="Cerrar Sesión"
-        android:textColor="#D32F2F"
+        android:text="Salir"
+        android:textColor="@color/purple_500"
         style="?attr/materialButtonOutlinedStyle"
-        app:strokeColor="#D32F2F"
+        app:strokeColor="@color/purple_500"
+        app:icon="@android:drawable/ic_menu_close_clear_cancel"
+        app:iconTint="@color/purple_500"
         android:layout_marginBottom="16dp"/>
 
 </LinearLayout>
