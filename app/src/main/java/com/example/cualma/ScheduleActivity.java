@@ -18,8 +18,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.cualma.adapters.ClassAdapter;
 import com.example.cualma.database.ClassSchedule;
 import com.example.cualma.database.DatabaseHelper;
+import com.example.cualma.utils.NotificationHelper;
 import com.example.cualma.utils.ScheduleExporter;
-// Importante: Usamos el botón extendido para evitar el crash
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import java.util.List;
 
@@ -28,9 +28,7 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
     private RecyclerView recyclerView;
     private ClassAdapter adapter;
     private DatabaseHelper dbHelper;
-    private ExtendedFloatingActionButton fabAdd; // Variable del tipo correcto
-
-    // Variables para la funcionalidad de guardar
+    private ExtendedFloatingActionButton fabAdd;
     private ActivityResultLauncher<Intent> saveFileLauncher;
     private Bitmap pendingBitmapToSave;
 
@@ -50,7 +48,7 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
         initViews();
         setupRecyclerView();
         setupClickListeners();
-        setupFilePicker(); // Inicializar el selector de archivos
+        setupFilePicker();
     }
 
     private void initViews() {
@@ -63,7 +61,6 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
         adapter = new ClassAdapter(this, this);
         recyclerView.setAdapter(adapter);
 
-        // Efecto para encoger/extender el botón al hacer scroll
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
@@ -82,7 +79,6 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
         });
     }
 
-    // Configuración del Selector de Archivos (SOLUCIÓN A TU ERROR)
     private void setupFilePicker() {
         saveFileLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
@@ -90,7 +86,6 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
                     if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                         Uri uri = result.getData().getData();
                         if (uri != null && pendingBitmapToSave != null) {
-                            // Usamos el método NUEVO que sí existe en ScheduleExporter
                             ScheduleExporter.saveBitmapToUri(this, pendingBitmapToSave, uri);
                         }
                     } else {
@@ -100,17 +95,14 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
         );
     }
 
-    // Método que inicia el proceso de guardar (Reemplaza a exportScheduleAsImage)
     private void initiateSaveProcess() {
         if (adapter.getItemCount() == 0) {
             Toast.makeText(this, "No hay clases para exportar", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // 1. Generar la imagen usando el método nuevo
         pendingBitmapToSave = ScheduleExporter.captureRecyclerView(recyclerView);
 
-        // 2. Abrir el selector de archivos del sistema
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("image/png");
@@ -132,8 +124,14 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
 
     @Override
     public void onClassDelete(ClassSchedule classSchedule) {
+        // Cancelar la notificación de esta clase
+        NotificationHelper.cancelClassNotification(this, classSchedule.getId());
+
+        // Eliminar de la base de datos
         dbHelper.deleteClass(classSchedule.getId());
         loadClasses();
+
+        Toast.makeText(this, "Clase eliminada", Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -168,7 +166,6 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
             startActivity(new Intent(this, ScheduleCalendarActivity.class));
             return true;
         } else if (id == R.id.action_download) {
-            // AQUÍ ESTABA EL ERROR: Llamamos al nuevo proceso
             initiateSaveProcess();
             return true;
         } else if (id == android.R.id.home) {
@@ -189,5 +186,8 @@ public class ScheduleActivity extends AppCompatActivity implements ClassAdapter.
     protected void onResume() {
         super.onResume();
         loadClasses();
+
+        // Reprogramar notificaciones por si hubo cambios
+        NotificationHelper.scheduleAllNotificationsForCurrentUser(this);
     }
 }

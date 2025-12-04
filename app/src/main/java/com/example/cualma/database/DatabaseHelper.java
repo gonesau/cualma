@@ -201,4 +201,29 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getWritableDatabase();
         db.delete(TABLE_SCHEDULE, COL_ID + " = ?", new String[]{String.valueOf(id)});
     }
+
+
+    public Student getStudentByCarnet(String carnet) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.query(TABLE_STUDENT, null,
+                COL_CARNET + " = ?",
+                new String[]{carnet},
+                null, null, null);
+
+        Student student = null;
+        if (cursor.moveToFirst()) {
+            student = new Student(
+                    cursor.getString(cursor.getColumnIndexOrThrow(COL_CARNET)),
+                    cursor.getString(cursor.getColumnIndexOrThrow(COL_NAME)),
+                    cursor.getString(cursor.getColumnIndexOrThrow(COL_LASTNAME)),
+                    cursor.getString(cursor.getColumnIndexOrThrow(COL_CAREER)),
+                    cursor.getString(cursor.getColumnIndexOrThrow(COL_BIRTH_DATE)),
+                    cursor.getString(cursor.getColumnIndexOrThrow(COL_EMAIL))
+            );
+        }
+        cursor.close();
+        return student;
+    }
+
+
 }

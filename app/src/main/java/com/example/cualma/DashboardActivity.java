@@ -37,8 +37,11 @@ public class DashboardActivity extends AppCompatActivity {
         loadStudentData();
         setupClickListeners();
 
-        // Inicializar canal de notificaciones para las clases
+        // Inicializar canal de notificaciones
         NotificationHelper.createNotificationChannel(this);
+
+        // IMPORTANTE: Programar todas las notificaciones al iniciar
+        NotificationHelper.scheduleAllNotificationsForCurrentUser(this);
     }
 
     private void initViews() {
@@ -49,14 +52,10 @@ public class DashboardActivity extends AppCompatActivity {
     }
 
     private void loadStudentData() {
-        // Intentar obtener el estudiante usando el carnet de la sesión
         String carnet = sessionManager.getCarnet();
-        // Nota: Idealmente crearías un método dbHelper.getStudentByCarnet(carnet)
-        // Por ahora usamos el método genérico existente getStudent()
-        Student student = dbHelper.getStudent();
+        Student student = dbHelper.getStudentByCarnet(carnet);
 
         if (student != null) {
-            // Dividir nombre para mostrar solo el primer nombre (más amigable)
             String firstName = student.getName().split(" ")[0];
             tvWelcome.setText("Hola, " + firstName);
         } else {
@@ -65,26 +64,25 @@ public class DashboardActivity extends AppCompatActivity {
     }
 
     private void setupClickListeners() {
-        // Ir a Perfil
         cardProfile.setOnClickListener(v -> {
             Intent intent = new Intent(this, StudentProfileActivity.class);
             startActivity(intent);
         });
 
-        // Ir a Horario
         cardSchedule.setOnClickListener(v -> {
             Intent intent = new Intent(this, ScheduleActivity.class);
             startActivity(intent);
         });
 
-        // Cerrar Sesión
         btnLogout.setOnClickListener(v -> logout());
     }
 
     private void logout() {
+        // IMPORTANTE: Cancelar todas las notificaciones antes de cerrar sesión
+        NotificationHelper.cancelAllNotifications(this);
+
         sessionManager.logoutUser();
         Intent intent = new Intent(this, MainActivity.class);
-        // Flags para limpiar la pila de actividades (evitar que vuelvan atrás)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
@@ -93,7 +91,9 @@ public class DashboardActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Recargar datos por si se editó el perfil y se volvió
         loadStudentData();
+
+        // Reprogramar notificaciones por si hubo cambios en el horario
+        NotificationHelper.scheduleAllNotificationsForCurrentUser(this);
     }
 }

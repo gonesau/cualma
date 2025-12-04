@@ -1,6 +1,7 @@
 package com.example.cualma;
 
 import android.app.DatePickerDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Patterns;
 import android.view.MenuItem;
@@ -8,17 +9,16 @@ import android.widget.Button;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-// Usamos TextInputEditText para mejor compatibilidad con el diseño nuevo
 import com.google.android.material.textfield.TextInputEditText;
 import com.example.cualma.database.DatabaseHelper;
 import com.example.cualma.database.Student;
+import com.example.cualma.utils.NotificationHelper;
 import com.example.cualma.utils.SessionManager;
 import java.util.Calendar;
 import java.util.Locale;
 
 public class StudentProfileActivity extends AppCompatActivity {
 
-    // Cambiamos a TextInputEditText para que coincida con el XML
     private TextInputEditText etCarnet, etName, etLastname, etCareer, etBirthDate, etEmail;
     private Button btnSave;
     private DatabaseHelper dbHelper;
@@ -32,7 +32,6 @@ public class StudentProfileActivity extends AppCompatActivity {
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        // Habilitar flecha de regreso en toolbar
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setDisplayShowTitleEnabled(true);
@@ -52,7 +51,6 @@ public class StudentProfileActivity extends AppCompatActivity {
     }
 
     private void initViews() {
-        // Los IDs son los mismos que en el XML
         etCarnet = findViewById(R.id.etCarnet);
         etName = findViewById(R.id.etName);
         etLastname = findViewById(R.id.etLastname);
@@ -64,7 +62,6 @@ public class StudentProfileActivity extends AppCompatActivity {
 
     private void setupClickListeners() {
         etBirthDate.setOnClickListener(v -> showDatePicker());
-        // Importante: asegurar que el click funcione sobre todo el input
         etBirthDate.setOnFocusChangeListener((v, hasFocus) -> {
             if(hasFocus) showDatePicker();
         });
@@ -81,7 +78,6 @@ public class StudentProfileActivity extends AppCompatActivity {
     }
 
     private void saveStudentData() {
-        // Validar nulos para evitar crash
         if(etCarnet.getText() == null || etName.getText() == null) return;
 
         String carnet = etCarnet.getText().toString().trim().toUpperCase();
@@ -120,7 +116,17 @@ public class StudentProfileActivity extends AppCompatActivity {
 
         if (result > 0 || result != -1) {
             Toast.makeText(this, isEditing ? "Datos actualizados" : "Registro exitoso", Toast.LENGTH_SHORT).show();
-            sessionManager.createLoginSession(carnet);
+
+            // Si es un nuevo registro, crear sesión
+            if (!isEditing) {
+                sessionManager.createLoginSession(carnet);
+
+                // Ir al dashboard después de registrarse
+                Intent intent = new Intent(this, DashboardActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+            }
+
             finish();
         } else {
             Toast.makeText(this, "Error al guardar en base de datos", Toast.LENGTH_SHORT).show();
@@ -129,10 +135,12 @@ public class StudentProfileActivity extends AppCompatActivity {
 
     private void loadStudentData() {
         if (sessionManager.isLoggedIn()) {
-            Student student = dbHelper.getStudent();
+            String carnet = sessionManager.getCarnet();
+            Student student = dbHelper.getStudentByCarnet(carnet);
+
             if (student != null) {
                 etCarnet.setText(student.getCarnet());
-                etCarnet.setEnabled(false); // No editar carnet
+                etCarnet.setEnabled(false);
                 etName.setText(student.getName());
                 etLastname.setText(student.getLastname());
                 etCareer.setText(student.getCareer());
@@ -146,7 +154,6 @@ public class StudentProfileActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Manejar flecha atrás del Toolbar
         if (item.getItemId() == android.R.id.home) {
             onBackPressed();
             return true;

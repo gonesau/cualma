@@ -12,16 +12,17 @@ import androidx.appcompat.widget.Toolbar;
 import com.example.cualma.database.ClassSchedule;
 import com.example.cualma.database.DatabaseHelper;
 import com.example.cualma.utils.NotificationHelper;
-import com.google.android.material.textfield.TextInputEditText; // Importante
+import com.example.cualma.utils.SessionManager;
+import com.google.android.material.textfield.TextInputEditText;
 import java.util.Locale;
 
 public class AddEditClassActivity extends AppCompatActivity {
 
-    // Usamos los componentes de Material
     private TextInputEditText etClassCode, etClassName, etStartTime, etEndTime, etClassroom, etTeacher;
-    private AutoCompleteTextView autoCompleteDay; // Reemplaza al Spinner
+    private AutoCompleteTextView autoCompleteDay;
     private Button btnSave;
     private DatabaseHelper dbHelper;
+    private SessionManager sessionManager;
     private int classId = -1;
 
     @Override
@@ -37,6 +38,7 @@ public class AddEditClassActivity extends AppCompatActivity {
         }
 
         dbHelper = new DatabaseHelper(this);
+        sessionManager = new SessionManager(this);
         classId = getIntent().getIntExtra("class_id", -1);
 
         if (classId != -1) {
@@ -46,7 +48,7 @@ public class AddEditClassActivity extends AppCompatActivity {
         }
 
         initViews();
-        setupDropdown(); // Configuración nueva del menú
+        setupDropdown();
         setupClickListeners();
 
         if (classId != -1) {
@@ -69,7 +71,6 @@ public class AddEditClassActivity extends AppCompatActivity {
         String[] days = {"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, days);
         autoCompleteDay.setAdapter(adapter);
-        // Asegurar que muestre el primer elemento si está vacío o por defecto
         if (autoCompleteDay.getText().toString().isEmpty()) {
             autoCompleteDay.setText(days[0], false);
         }
@@ -77,11 +78,14 @@ public class AddEditClassActivity extends AppCompatActivity {
 
     private void setupClickListeners() {
         etStartTime.setOnClickListener(v -> showTimePicker(etStartTime));
-        // Fix: Asegurar que el foco también dispare el picker
-        etStartTime.setOnFocusChangeListener((v, hasFocus) -> { if(hasFocus) showTimePicker(etStartTime); });
+        etStartTime.setOnFocusChangeListener((v, hasFocus) -> {
+            if(hasFocus) showTimePicker(etStartTime);
+        });
 
         etEndTime.setOnClickListener(v -> showTimePicker(etEndTime));
-        etEndTime.setOnFocusChangeListener((v, hasFocus) -> { if(hasFocus) showTimePicker(etEndTime); });
+        etEndTime.setOnFocusChangeListener((v, hasFocus) -> {
+            if(hasFocus) showTimePicker(etEndTime);
+        });
 
         btnSave.setOnClickListener(v -> saveClass());
     }
@@ -104,8 +108,6 @@ public class AddEditClassActivity extends AppCompatActivity {
             etEndTime.setText(classSchedule.getEndTime());
             etClassroom.setText(classSchedule.getClassroom());
             etTeacher.setText(classSchedule.getTeacherName());
-
-            // Para el AutoCompleteTextView, seteamos el texto sin filtrar
             autoCompleteDay.setText(classSchedule.getDay(), false);
         }
     }
@@ -117,7 +119,6 @@ public class AddEditClassActivity extends AppCompatActivity {
         String endTime = etEndTime.getText().toString().trim();
         String classroom = etClassroom.getText().toString().trim();
         String teacher = etTeacher.getText().toString().trim();
-        // Obtenemos el valor directamente del texto del AutoComplete
         String day = autoCompleteDay.getText().toString();
 
         if (classCode.isEmpty() || className.isEmpty() || startTime.isEmpty() ||
@@ -130,12 +131,16 @@ public class AddEditClassActivity extends AppCompatActivity {
                 classId, classCode, className, startTime, endTime, classroom, teacher, day
         );
 
+        String carnet = sessionManager.getCarnet();
         long result;
+
         if (classId != -1) {
             result = dbHelper.updateClass(classSchedule);
             if (result > 0) {
                 Toast.makeText(this, "Clase actualizada", Toast.LENGTH_SHORT).show();
-                NotificationHelper.scheduleClassNotification(this, classSchedule);
+
+                // Reprogramar notificación para esta clase
+                NotificationHelper.scheduleClassNotification(this, classSchedule, carnet);
                 finish();
             } else {
                 Toast.makeText(this, "Error al actualizar", Toast.LENGTH_SHORT).show();
@@ -144,8 +149,12 @@ public class AddEditClassActivity extends AppCompatActivity {
             result = dbHelper.insertClass(classSchedule);
             if (result > 0) {
                 Toast.makeText(this, "Clase agregada", Toast.LENGTH_SHORT).show();
+
+                // Configurar el ID de la clase recién creada
                 classSchedule.setId((int) result);
-                NotificationHelper.scheduleClassNotification(this, classSchedule);
+
+                // Programar notificación para esta nueva clase
+                NotificationHelper.scheduleClassNotification(this, classSchedule, carnet);
                 finish();
             } else {
                 Toast.makeText(this, "Error al guardar", Toast.LENGTH_SHORT).show();
