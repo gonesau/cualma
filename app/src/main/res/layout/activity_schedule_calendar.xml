@@ -11,17 +11,16 @@
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/transparent"
-        app:elevation="0dp">
+        app:elevation="4dp">
 
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="@drawable/ic_launcher_foreground"
             app:title="Calendario Académico"
             app:titleCentered="true"
-            app:titleTextColor="@android:color/black"/>
+            app:titleTextColor="@color/white"
+            android:background="@color/purple_500"/>
     </com.google.android.material.appbar.AppBarLayout>
 
     <LinearLayout
